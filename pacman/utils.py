@@ -113,3 +113,8 @@ class Debug:
     @staticmethod
     def print(*args):
         print(*args, file=sys.stderr)
+
+class Console:
+    @staticmethod
+    def print(*args):
+        print(*args)

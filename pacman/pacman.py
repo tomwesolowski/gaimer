@@ -104,7 +104,8 @@ class Agent:
         self.type = type
         self.strategy = strategy
         self.pos = pos
-        self.strategy.read_agent_data(self)
+        self.strategy.agent_name = self.name
+        self.strategy.agent_type = self.type
 
     def __hash__(self):
         return name.__hash__()

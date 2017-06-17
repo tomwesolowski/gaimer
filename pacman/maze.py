@@ -1,16 +1,15 @@
-import copy
 import sched
 import time
-import sys
 
 import autograd.numpy as np
 import matplotlib.pyplot as plt
 
 from gui import Gui
+
 import pacman
 from params import Parameters
 from strategies import PolicyStrategy, KeyboardStrategy, ChaseStrategy
-from utils import Coord, Utils
+from utils import Console, Coord, Debug, Utils
 
 class Environment:
     def __init__(self, board, agents, foods, exit, learning_epochs):
@@ -69,7 +68,7 @@ class Environment:
                 nstate.agents[idx], action = agent.move(state, action)
                 newpos = nstate.agents[idx].pos
                 if not self.is_valid_state(nstate):
-                    print("Agent [", agent.name, "] Forbidden move!", file=sys.stderr)
+                    Debug.print("Agent [", agent.name, "] Forbidden move!")
                     assert False
                     nstate.agents[idx] = agent
                 if newpos in nstate.foods:
@@ -79,8 +78,8 @@ class Environment:
                 # hack. enemies see what move we're going to make.
                 nstate.agents[idx], _ = agent.move(nstate)
                 if not self.is_valid_state(nstate):
-                    print(agent.pos, nstate.agents[idx].pos)
-                    print("Agent [", agent.name, "] Forbidden move!", file=sys.stderr)
+                    Debug.print(agent.pos, nstate.agents[idx].pos)
+                    Debug.print("Agent [", agent.name, "] Forbidden move!")
                     assert False
         return nstate, self.get_reward(nstate, eaten)
 
@@ -128,16 +127,14 @@ class Environment:
         self.gui.update_stats(self.stats)
 
     def next(self):
-        # assert(all(ag.strategy.learnt for ag in self.agents))
         self.current_state, _ = self.act(self.current_state)
-
         if self.is_winning_state(self.current_state):
-            print("-1 -1")
-            print("Player won.", file=sys.stderr)
+            Console.print("-1 -1")
+            Debug.print("Player won.")
             return False
         elif self.is_losing_state(self.current_state):
-            print("-1 -1")
-            print("Player lost.", file=sys.stderr)
+            Console.print("-1 -1")
+            Debug.print("Player lost.")
             return False
         return True
 
@@ -166,9 +163,11 @@ class Environment:
         return self.board[pos.y][pos.x]
 
 
-####################### PRZYKLADOWE MAPY ###########################################
+'''
+Environments
+'''
 
-def get_simple_environment_without_foods():
+def get_simple_environment_with_three_foods():
     board = np.array(
         [
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -190,14 +189,13 @@ def get_simple_environment_without_foods():
         agents=[pacman.PlayerAgent("Player", PolicyStrategy(), Coord(9, 0)),
                 pacman.GhostAgent("Ghost #1", ChaseStrategy(target_agent=pacman.AgentType.PLAYER), Coord(0, 8)),
                 pacman.GhostAgent("Ghost #2", ChaseStrategy(target_agent=pacman.AgentType.PLAYER), Coord(8, 10)),
-                # GhostAgent("Ghost #3", ChaseStrategy(target_agentpacman.AgentType.PLAYER), Coord(0, 9))
                 ],
         foods=[Coord(0, 10), Coord(4, 5), Coord(0, 0)],
         exit=Coord(10, 10),
         learning_epochs=Parameters.LEARN_EPOCHS)
 
 
-def get_simple_environment():
+def get_simple_environment_without_ghosts():
     board = np.array(
         [
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -218,12 +216,8 @@ def get_simple_environment():
     return Environment(
         board=board,
         agents=[pacman.PlayerAgent("Player", PolicyStrategy(), Coord(9, 0)),
-                # Kazdy duszek moze albo scigac dany typ agenta (w tym przypadku gracza)
-                # albo moze biec do okreslonego pola.
                 #GhostAgent("Ghost #1", ChaseStrategy(target_agent=pacman.AgentType.PLAYER), Coord(0, 8)),
-                # Ten duszek sciga inne duszki.
                 #GhostAgent("Ghost #2", ChaseStrategy(target_agent=pacman.AgentType.GHOST), Coord(8, 10)),
-                # A ten biegnie do wyjscia.
                 #GhostAgent("Ghost #3", ChaseStrategy(target_pos=exitposition), Coord(4, 4))
                 ],
         foods=[Coord(2, 0), Coord(0, 1), Coord(0, 2), Coord(1, 0), Coord(0, 0),
@@ -235,7 +229,7 @@ def get_simple_environment():
         learning_epochs=LEARN_EPOCHS)
 
 
-def get_bartek_environment():
+def get_simple_environment():
     board = np.array(
         [
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -262,18 +256,11 @@ def get_bartek_environment():
         exit=Coord(5, 4),
         learning_epochs=LEARN_EPOCHS)
 
-# Żeby utworzyć własną mapę, skopiuj jedną z powyższych funkcji, zmodyfikuj ją i wywołaj w funkcji main() w
-# env = get_twoje_srodowisko()
-
-##################################################################
-
 def main():
-    np.set_printoptions(formatter={'float': '{: 0.2f}'.format})
-
-    env = get_simple_environment_without_foods()
-    env.start()
+    get_simple_environment_with_three_foods().start()
     plt.ioff()
     plt.show()
 
 if __name__ == '__main__':
+    np.set_printoptions(formatter={'float': '{: 0.2f}'.format})
     main()

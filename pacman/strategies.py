@@ -3,16 +3,14 @@ import numpy as np
 import pacman
 from params import Parameters
 from tqdm import trange
-from utils import Debug, PlotType, MatrixStats, Stats, Utils
+from utils import Console, Debug, PlotType, MatrixStats, Stats, Utils
+
 
 class AgentStrategy:
-    """docstring for AgentStrategy"""
+    """Base class for all Agent strategies"""
 
     def __init__(self):
         self.learnt = False
-
-    def read_agent_data(self, agent):
-        pass
 
     def learn(self, env, epochs, startstate):
         pass
@@ -25,7 +23,7 @@ class AgentStrategy:
 
 
 class PolicyStrategy(AgentStrategy):
-    """docstring for PolicyStrategy"""
+    """Makes move according to TD(lambda) algorithm"""
 
     def __init__(self):
         AgentStrategy.__init__(self)
@@ -34,7 +32,6 @@ class PolicyStrategy(AgentStrategy):
     def register_stats(self, env):
         env.stats['rewards'] = Stats(PlotType.REGULAR)
         env.stats['loses'] = Stats(PlotType.REGULAR)
-        #env.stats['actions'] = Stats(PlotType.BAR)
         env.stats['heatmap'] = MatrixStats(env.height, env.width, 0)
 
     def learn(self, env, epochs, startstate):
@@ -45,19 +42,32 @@ class PolicyStrategy(AgentStrategy):
             total_loses = 0.0
             Debug.print("QValues size: ", len(self.qvalues))
             for _ in range(Parameters.EPISODES_PER_EPOCH):
+                # Initialize state and values for statistics.
                 lenepisode = 0
                 state = startstate.copy()
                 action = pacman.Action.IDLE
                 current_episode = [(state, action)]
+
                 # Play and collect samples.
                 while not env.is_terminating_state(state) and lenepisode <= Parameters.MAX_LEN_EPISODE:
+                    # Make move and get reward.
                     nstate, reward = state.env.act(state, action)
+
+                    # If it's last turn in episode, rewrite reward value to speed-up learning process.
                     if lenepisode == Parameters.MAX_LEN_EPISODE and not env.is_terminating_state(nstate):
+                        # Gets ultimate reward based on number foods collected.
                         reward = -Parameters.INF / (5 - len(nstate.foods))
+
+                    # Take eps-greedy action.
                     naction = self.q_eps_greedy_action(nstate, epoch)
+
+                    # Compute delta based on Bellman equation.
                     delta = reward + Parameters.GAMMA * self.get_qvalue(nstate, naction) - self.get_qvalue(state, action)
-                    current_episode += [(nstate, naction)]
+
+                    # Increment eligibility of current state-action pair.
                     self.inc_eligibility(state, action)
+
+                    # Update qvalues based on eligibility for all states in history.
                     for (state, action) in current_episode:
                         stateid = state.id()
                         addval = Parameters.ALPHA * delta * self.get_eligibility(stateid, action)
@@ -65,16 +75,25 @@ class PolicyStrategy(AgentStrategy):
                         self.eligibility[(stateid, action)] *= Parameters.GAMMA * Parameters.LAMBDA
                         player_pos = state.get_player_pos()
                         env.stats['heatmap'].add_in_point(player_pos.y, player_pos.x, 1)
+
+                    # Update counters.
                     lenepisode += 1
                     total_rewards += reward
+
+                    # Save state-action pair into replay history of current episode.
+                    current_episode += [(nstate, naction)]
+
+                    # Move on to next state.
                     state, action = nstate, naction
                 total_loses += env.is_losing_state(state)
+            # Update statistics.
             env.stats['rewards'].append(total_rewards / Parameters.EPISODES_PER_EPOCH)
             env.stats['loses'].append(total_loses / Parameters.EPISODES_PER_EPOCH)
             env.refresh_stats()
         self.learnt = True
 
     def q_eps_greedy_action(self, state, epoch):
+        """ Eps-greedy move selection. """
         actions = state.env.get_player_actions(state)
         raction = actions[np.random.choice(max(1, len(actions)))]
         if np.random.random() > 1-(Parameters.EPS/math.sqrt(epoch+1)) or len(actions) <= 0:
@@ -84,6 +103,7 @@ class PolicyStrategy(AgentStrategy):
         return naction
 
     def q_greedy_action(self, state):
+        """ Greedy move selection. """
         if state.env.is_terminating_state(state):
             return pacman.Action.IDLE, None
         actions = state.env.get_player_actions(state)
@@ -100,20 +120,20 @@ class PolicyStrategy(AgentStrategy):
 
     def get_eligibility(self, sid, action):
         if (sid, action) not in self.eligibility:
-            self.eligibility[(sid, action)] = 0
+            self.eligibility[(sid, action)] = Parameters.DEFAULT_ELIGIBILITY
         return self.eligibility[(sid, action)]
 
     def inc_eligibility(self, state, action):
         sid = state.id()
         if (sid, action) not in self.eligibility:
-            self.eligibility[(sid, action)] = 1
+            self.eligibility[(sid, action)] = Parameters.INC_ELIGIBILITY
         else:
-            self.eligibility[(sid, action)] += 1
+            self.eligibility[(sid, action)] += Parameters.INC_ELIGIBILITY
 
     def get_qvalue(self, state, action):
         sid = state.id()
         if (sid, action) not in self.qvalues:
-            self.qvalues[(sid, action)] = 0
+            self.qvalues[(sid, action)] = Parameters.DEFAULT_QVALUE
         return self.qvalues[(sid, action)]
 
     def get_action(self, state):
@@ -135,23 +155,12 @@ class ChaseStrategy(AgentStrategy):
 
     def learn(self, env, epochs, startstate):
         self.init(env)
-        return
-        Debug.print("Learning ChaseStrategy...")
-        if self.learnt:
-            return
-        self.policy = self.compute_policy(env)
-        self.learnt = True
-        Debug.print("Done.")
 
     def init(self, env):
         self.policy = dict()
 
     def __get_new_policy__(self, env):
         return np.empty(env.get_states_dims(), dtype=pacman.Action)
-
-    def read_agent_data(self, agent):
-        self.agent_name = agent.name
-        self.agent_type = agent.type
 
     def compute_policy(self, env):
         newpolicy = self.__get_new_policy__(env)
@@ -191,23 +200,22 @@ class ChaseStrategy(AgentStrategy):
 
 
 class KeyboardStrategy(AgentStrategy):
-    """docstring for ChaseStrategy"""
-
+    """Writes game description to console output and reads next move from standard input"""
     def __init__(self):
         AgentStrategy.__init__(self)
 
     def print_game(self, state):
         env = state.env
-        print(env.height, env.width)
+        Console.print(env.height, env.width)
         for i in range(env.height):
-            print(''.join(map(str, env.board[i])))
-        print(env.exit.y, env.exit.x)
-        print(len(state.agents))
+            Console.print(''.join(map(str, env.board[i])))
+        Console.print(env.exit.y, env.exit.x)
+        Console.print(len(state.agents))
         for agent in state.agents:
-            print(agent.pos.y, agent.pos.x)
-        print(len(state.foods))
+            Console.print(agent.pos.y, agent.pos.x)
+        Console.print(len(state.foods))
         for food in state.foods:
-            print(food.y, food.x)
+            Console.print(food.y, food.x)
 
     def get_action(self, state):
         self.print_game(state)  # communicate with player before you ask for move.
