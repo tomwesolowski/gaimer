@@ -66,6 +66,8 @@ class PolicyStrategy(AgentStrategy):
 
                     # Increment eligibility of current state-action pair.
                     self.inc_eligibility(state, action)
+                    player_pos = state.get_player_pos()
+                    env.stats['heatmap'].add_in_point(player_pos.y, player_pos.x, 1)
 
                     # Update qvalues based on eligibility for all states in history.
                     for (state, action) in current_episode:
@@ -73,8 +75,6 @@ class PolicyStrategy(AgentStrategy):
                         addval = Parameters.ALPHA * delta * self.get_eligibility(stateid, action)
                         self.qvalues[(stateid, action)] += addval
                         self.eligibility[(stateid, action)] *= Parameters.GAMMA * Parameters.LAMBDA
-                        player_pos = state.get_player_pos()
-                        env.stats['heatmap'].add_in_point(player_pos.y, player_pos.x, 1)
 
                     # Update counters.
                     lenepisode += 1
