@@ -12,120 +12,6 @@ from params import Parameters
 from strategies import PolicyStrategy, KeyboardStrategy, ChaseStrategy
 from utils import Coord, Utils
 
-##################################################################
-
-class State:
-    """docstring for State"""
-
-    def __init__(self, env, agents, foods):
-        self.env = env
-        self.agents = agents
-        self.foods = foods
-        self.boardsize = env.width * env.height
-        self.cached_id = -1
-
-    def get_agent_pos_with_name(self, agent_name):
-        for agent in self.agents:
-            if agent.name == agent_name:
-                return agent.pos
-        assert False
-
-    def get_agents_pos_with_type(self, agent_type):
-        return [agent.pos for agent in self.agents if agent.type == agent_type]
-
-    def get_player_pos(self):
-        return self.get_agents_pos_with_type(pacman.Agent.PLAYER)[0]
-
-    def get_enemy_agents(self):
-        return [agent for agent in self.agents if agent.type != pacman.Agent.PLAYER]
-
-    def clear_cache(self):
-        self.cached_id = -1
-
-    def copy(self):
-        return State(self.env, copy.copy(self.agents), copy.copy(self.foods))
-
-    def __hash__(self):
-        assert False
-
-    def id(self):
-        # if self.cached_id < 0:
-        self.cached_id = 0
-        for agent in self.agents:
-            self.cached_id *= self.boardsize
-            self.cached_id += self.env.width * agent.pos.y + agent.pos.x
-        return self.cached_id * (len(self.foods) + 1)
-
-    def id_for(self, agent_name):
-        # if self.cached_id < 0:
-        self.cached_id = 0
-        for agent in self.agents:
-            if agent.type != pacman.Agent.GHOST or agent.name == agent_name:
-                self.cached_id *= self.boardsize
-                self.cached_id += self.env.width * agent.pos.y + agent.pos.x
-        return self.cached_id * hash(frozenset(self.foods))
-
-######s
-
-######
-
-class Agent:
-    def __init__(self, name, type, strategy, pos):
-        self.name = name
-        self.type = type
-        self.strategy = strategy
-        self.pos = pos
-        self.strategy.read_agent_data(self)
-
-    def __hash__(self):
-        return name.__hash__()
-
-    def __repr__(self):
-        return str(self.name + ": " + str(self.pos))
-
-    def learn(self, env, epochs, startstate):
-        self.strategy.learn(env, epochs, startstate)
-
-    def move(self, state, action=None):
-        if action is None:
-            return self.move(state, self.strategy.get_action(state))
-        else:
-            return Agent(self.name, self.type, self.strategy, self.pos + action), action
-
-
-######
-
-class PlayerAgent(Agent):
-    def __init__(self, name, strategy, pos):
-        Agent.__init__(self, name, pacman.Agent.PLAYER, strategy, pos)
-
-
-######
-
-class GhostAgent(Agent):
-    def __init__(self, name, strategy, pos):
-        Agent.__init__(self, name, pacman.Agent.GHOST, strategy, pos)
-
-
-#########################################################################
-
-def cartesian(arrays, out=None):
-    arrays = [np.asarray(x) for x in arrays]
-    dtype = arrays[0].dtype
-
-    n = np.prod([x.size for x in arrays])
-    if out is None:
-        out = np.zeros([n, len(arrays)], dtype=dtype)
-
-    m = n // arrays[0].size
-    out[:, 0] = np.repeat(arrays[0], m)
-    if arrays[1:]:
-        cartesian(arrays[1:], out=out[0:m, 1:])
-        for j in range(1, arrays[0].size):
-            out[j * m:(j + 1) * m, 1:] = out[0:m, 1:]
-    return out
-
-
 class Environment:
     def __init__(self, board, agents, foods, exit, learning_epochs):
         self.height = board.shape[0]
@@ -136,36 +22,26 @@ class Environment:
         self.exit = exit
         self.learning_epochs = learning_epochs
         self.gui = Gui(self.height, self.width)
-        self.current_state = State(self, agents, foods)
+        self.current_state = pacman.State(self, agents, foods)
         self.scheduler = sched.scheduler(time.time, time.sleep)
         self.stats = dict()
         for agent in self.agents:
             agent.strategy.register_stats(self)
 
     def start(self):
-        self.gui.run(self.get_colorboard(), self.stats)
+        self.gui.run(pacman.Pacman.get_colorboard(self), self.stats)
         for agent in self.current_state.get_enemy_agents():
             agent.learn(self, self.learning_epochs, self.current_state)
         for agent in self.agents:
-            if agent.type == pacman.Agent.PLAYER:
+            if agent.type == pacman.AgentType.PLAYER:
                 agent.learn(self, self.learning_epochs, self.current_state)
         self.play()
-
-    def get_colorboard(self):
-        colorboard = pacman.COLORS[self.board]
-        colorboard[self.exit.y][self.exit.x] = pacman.COLORS[pacman.ObjectType.EXIT]
-        for food in self.current_state.foods:
-            colorboard[food.y][food.x] = pacman.COLORS[pacman.ObjectType.FOOD]
-        for agent in self.current_state.agents:
-            print(agent, file=sys.stderr)
-            colorboard[agent.pos.y][agent.pos.x] = pacman.COLORS[agent.type]
-        return colorboard
 
     def play(self):
         keep_going = True
         while keep_going:
             keep_going = self.next()
-            self.gui.update_board(self.get_colorboard())
+            self.gui.update_board(pacman.Pacman.get_colorboard(self))
             time.sleep(Parameters.FREQ)
 
     # returns (npos, naction)
@@ -176,20 +52,20 @@ class Environment:
     # returns (nstate, naction, reward)
     def get_transitions(self, state):
         transitions = []
-        for naction in self.get_actions(state.get_player_pos(), pacman.Agent.PLAYER):
+        for naction in self.get_actions(state.get_player_pos(), pacman.AgentType.PLAYER):
             nstate, nreward = self.act(state, naction)
             transitions.append((nstate, naction, nreward))
         return transitions
 
     def get_player_actions(self, state):
-        return self.get_actions(state.get_player_pos(), pacman.Agent.PLAYER)
+        return self.get_actions(state.get_player_pos(), pacman.AgentType.PLAYER)
 
     # returns (state, reward)
     def act(self, state, action=None):
         nstate = state.copy()
         eaten = False
         for idx, agent in enumerate(state.agents):
-            if agent.type is pacman.Agent.PLAYER:
+            if agent.type is pacman.AgentType.PLAYER:
                 nstate.agents[idx], action = agent.move(state, action)
                 newpos = nstate.agents[idx].pos
                 if not self.is_valid_state(nstate):
@@ -215,11 +91,11 @@ class Environment:
             valid_positions.append(
                 [Coord.from_tuple(idx) for idx, _ in indices
                  if self.is_valid_position(Coord.from_tuple(idx), agent.type)])
-        for poses in cartesian(valid_positions):
+        for poses in Utils.cartesian(valid_positions):
             newagents = \
                 [Agent(ag.name, ag.type, ag.strategy, poses[idx]) for idx, ag
                  in enumerate(self.agents)]
-            self.all_states.append(State(self, newagents))
+            self.all_states.append(pacman.State(self, newagents))
 
     def get_all_states(self):
         return self.all_states
@@ -239,10 +115,10 @@ class Environment:
                    for agent in state.agents)
 
     def is_valid_position(self, pos, agent_type):
-        if agent_type == pacman.Agent.PLAYER:
+        if agent_type == pacman.AgentType.PLAYER:
             return pos.good(self.height, self.width) \
                    and (self.get(pos) != pacman.ObjectType.WALL)
-        elif agent_type == pacman.Agent.GHOST:
+        elif agent_type == pacman.AgentType.GHOST:
             return pos.good(self.height, self.width) \
                    and (self.get(pos) != pacman.ObjectType.WALL)
         else:
@@ -311,10 +187,10 @@ def get_simple_environment_without_foods():
 
     return Environment(
         board=board,
-        agents=[PlayerAgent("Player", PolicyStrategy(), Coord(9, 0)),
-                GhostAgent("Ghost #1", ChaseStrategy(target_agent=pacman.Agent.PLAYER), Coord(0, 8)),
-                GhostAgent("Ghost #2", ChaseStrategy(target_agent=pacman.Agent.PLAYER), Coord(8, 10)),
-                # GhostAgent("Ghost #3", ChaseStrategy(target_agentpacman.Agent.PLAYER), Coord(0, 9))
+        agents=[pacman.PlayerAgent("Player", PolicyStrategy(), Coord(9, 0)),
+                pacman.GhostAgent("Ghost #1", ChaseStrategy(target_agent=pacman.AgentType.PLAYER), Coord(0, 8)),
+                pacman.GhostAgent("Ghost #2", ChaseStrategy(target_agent=pacman.AgentType.PLAYER), Coord(8, 10)),
+                # GhostAgent("Ghost #3", ChaseStrategy(target_agentpacman.AgentType.PLAYER), Coord(0, 9))
                 ],
         foods=[Coord(0, 10), Coord(4, 5), Coord(0, 0)],
         exit=Coord(10, 10),
@@ -341,12 +217,12 @@ def get_simple_environment():
     exitposition = Coord(4, 8)
     return Environment(
         board=board,
-        agents=[PlayerAgent("Player", PolicyStrategy(), Coord(9, 0)),
+        agents=[pacman.PlayerAgent("Player", PolicyStrategy(), Coord(9, 0)),
                 # Kazdy duszek moze albo scigac dany typ agenta (w tym przypadku gracza)
                 # albo moze biec do okreslonego pola.
-                #GhostAgent("Ghost #1", ChaseStrategy(target_agent=pacman.Agent.PLAYER), Coord(0, 8)),
+                #GhostAgent("Ghost #1", ChaseStrategy(target_agent=pacman.AgentType.PLAYER), Coord(0, 8)),
                 # Ten duszek sciga inne duszki.
-                #GhostAgent("Ghost #2", ChaseStrategy(target_agent=pacman.Agent.GHOST), Coord(8, 10)),
+                #GhostAgent("Ghost #2", ChaseStrategy(target_agent=pacman.AgentType.GHOST), Coord(8, 10)),
                 # A ten biegnie do wyjscia.
                 #GhostAgent("Ghost #3", ChaseStrategy(target_pos=exitposition), Coord(4, 4))
                 ],
@@ -378,9 +254,9 @@ def get_bartek_environment():
 
     return Environment(
         board=board,
-        agents=[PlayerAgent("Player", KeyboardStrategy(), Coord(0, 0)),
-                GhostAgent("Ghost #1", ChaseStrategy(target_agent=pacman.Agent.PLAYER), Coord(10, 0)),
-                GhostAgent("Ghost #2", ChaseStrategy(target_agent=pacman.Agent.GHOST), Coord(10, 10)),
+        agents=[pacman.PlayerAgent("Player", KeyboardStrategy(), Coord(0, 0)),
+                pacman.GhostAgent("Ghost #1", ChaseStrategy(target_agent=pacman.AgentType.PLAYER), Coord(10, 0)),
+                pacman.GhostAgent("Ghost #2", ChaseStrategy(target_agent=pacman.AgentType.GHOST), Coord(10, 10)),
                 ],
         foods=[Coord(2, 2), Coord(8, 2), Coord(0, 10)],
         exit=Coord(5, 4),

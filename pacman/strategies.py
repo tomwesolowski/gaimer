@@ -166,7 +166,7 @@ class ChaseStrategy(AgentStrategy):
         curpos = state.get_agent_pos_with_name(self.agent_name)
         if hasattr(self, 'target_agent_type'):
             targetspos = state.get_agents_pos_with_type(self.target_agent_type)
-            if self.target_agent_type == pacman.Agent.GHOST:
+            if self.target_agent_type == pacman.AgentType.GHOST:
                 targetspos.remove(curpos)
         else:
             targetspos = [self.target_pos]
