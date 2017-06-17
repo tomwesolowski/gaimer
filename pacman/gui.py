@@ -1,21 +1,14 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from enum import Enum
+from utils import PlotType
 
 WSCALE, HSCALE = 1, 1
 INF = 1e9
 
-class PlotType(Enum):
-    REGULAR = 0
-    BAR = 1
-    MATRIX = 2
-
-
 class Gui:
-    def __init__(self, height, width, epochs):
+    def __init__(self, height, width):
         self.height = height
         self.width = width
-        self.epochs = epochs
 
     def run(self, colorboard, stats):
         plt.ion()
@@ -34,7 +27,7 @@ class Gui:
             elif stat.plot_type == PlotType.BAR:
                 line = ax.bar(0, 0)[0]
             elif stat.plot_type == PlotType.MATRIX:
-                line = ax.matshow(stat.matrix, vmin=-100, vmax=0)
+                line = ax.matshow(stat.matrix, vmin=np.min(stat.matrix), vmax=np.max(stat.matrix))
             else:
                 assert False
             statid += 1
@@ -77,7 +70,8 @@ class Gui:
 
     def update_matrix(self, name, stat):
         (ax, mat) = self.stats[name]
-        mat.set_data(stat.matrix)
+        mat = ax.matshow(stat.matrix, vmin=np.min(stat.matrix), vmax=np.max(stat.matrix))
+        self.stats[name] = (ax, mat)
 
     def refresh(self):
         self.fig.canvas.draw()
