@@ -11,7 +11,7 @@ int main() {
   ios_base::sync_with_stdio(0);
   srand(time(0));
 
-  redi::pstream proc("python3 -u ../maze.py");
+  redi::pstream proc("python3 -u ../env.py");
 
   while(true) {
     // read_board

@@ -83,28 +83,6 @@ class Environment:
                     assert False
         return nstate, self.get_reward(nstate, eaten)
 
-    def __generate_all_states__(self):
-        valid_positions = []
-        for agent in self.agents:
-            indices = np.ndenumerate(np.ndarray((self.height, self.width)))
-            valid_positions.append(
-                [Coord.from_tuple(idx) for idx, _ in indices
-                 if self.is_valid_position(Coord.from_tuple(idx), agent.type)])
-        for poses in Utils.cartesian(valid_positions):
-            newagents = \
-                [Agent(ag.name, ag.type, ag.strategy, poses[idx]) for idx, ag
-                 in enumerate(self.agents)]
-            self.all_states.append(pacman.State(self, newagents))
-
-    def get_all_states(self):
-        return self.all_states
-
-    def get_states_dims(self):
-        size = 1
-        for _ in self.agents:
-            size *= self.height * self.width
-        return size
-
     def get_actions(self, pos, agent_type):
         return [action for action in pacman.Action
                 if self.is_valid_position(pos + action, agent_type)]
