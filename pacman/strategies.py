@@ -13,34 +13,35 @@ class AgentStrategy:
         self.learnt = False
 
     def learn(self, env, epochs, startstate):
-        pass
+        raise NotImplementedError
 
     def register_stats(self, env):
-        pass
+        raise NotImplementedError
 
     def get_action(self, state):
-        pass
-
+        raise NotImplementedError
 
 class PolicyStrategy(AgentStrategy):
     """Makes move according to TD(lambda) algorithm"""
 
-    def __init__(self):
+    def __init__(self, approximator):
         AgentStrategy.__init__(self)
-        self.qvalues, self.eligibility = dict(), dict()
+        self.approximator = approximator
 
     def register_stats(self, env):
+        """ Creates charts/stats that we want to show. """
         env.stats['rewards'] = Stats(PlotType.REGULAR)
         env.stats['loses'] = Stats(PlotType.REGULAR)
         env.stats['heatmap'] = MatrixStats(env.height, env.width, 0)
 
     def learn(self, env, epochs, startstate):
+        """ Main function. It learns a strategy by trial/error with TD(lambda) algorithm."""
         if self.learnt:
             return
         for epoch in trange(Parameters.LEARN_EPOCHS):
             total_rewards = 0.0
             total_loses = 0.0
-            Debug.print("QValues size: ", len(self.qvalues))
+            Debug.print("QValues size: ", self.approximator.num_qvalues())
             for _ in range(Parameters.EPISODES_PER_EPOCH):
                 # Initialize state and values for statistics.
                 lenepisode = 0
@@ -62,19 +63,20 @@ class PolicyStrategy(AgentStrategy):
                     naction = self.q_eps_greedy_action(nstate, epoch)
 
                     # Compute delta based on Bellman equation.
-                    delta = reward + Parameters.GAMMA * self.get_qvalue(nstate, naction) - self.get_qvalue(state, action)
+                    delta = reward + Parameters.GAMMA * \
+                                     self.approximator.qvalues[(nstate, naction)] - \
+                                     self.approximator.qvalues[(state, action)]
 
                     # Increment eligibility of current state-action pair.
-                    self.inc_eligibility(state, action)
+                    self.approximator.eligibility[(state, action)] += Parameters.INC_ELIGIBILITY
                     player_pos = state.get_player_pos()
                     env.stats['heatmap'].add_in_point(player_pos.y, player_pos.x, 1)
 
                     # Update qvalues based on eligibility for all states in history.
                     for (state, action) in current_episode:
-                        stateid = state.id()
-                        addval = Parameters.ALPHA * delta * self.get_eligibility(stateid, action)
-                        self.qvalues[(stateid, action)] += addval
-                        self.eligibility[(stateid, action)] *= Parameters.GAMMA * Parameters.LAMBDA
+                        addval = Parameters.ALPHA * delta * self.approximator.eligibility[(state, action)]
+                        self.approximator.qvalues[(state, action)] += addval
+                        self.approximator.eligibility[(state, action)] *= Parameters.GAMMA * Parameters.LAMBDA
 
                     # Update counters.
                     lenepisode += 1
@@ -96,7 +98,7 @@ class PolicyStrategy(AgentStrategy):
         """ Eps-greedy move selection. """
         actions = state.env.get_player_actions(state)
         raction = actions[np.random.choice(max(1, len(actions)))]
-        if np.random.random() > 1-(Parameters.EPS/math.sqrt(epoch+1)) or len(actions) <= 0:
+        if np.random.random() > 1 - (Parameters.EPS / math.sqrt(epoch + 1)) or len(actions) <= 0:
             naction = raction
         else:
             naction, _ = self.q_greedy_action(state)
@@ -106,35 +108,21 @@ class PolicyStrategy(AgentStrategy):
         """ Greedy move selection. """
         if state.env.is_terminating_state(state):
             return pacman.Action.IDLE, None
+
         actions = state.env.get_player_actions(state)
         naction, naction_value = None, -Parameters.INF
-        probs_and_actions = []
+        values_and_actions = []
+
+        # Pick the best action.
         for action in actions:
-            value = self.get_qvalue(state, action)
-            probs_and_actions.append((value, action))
+            value = self.approximator.qvalues[(state, action)]
+            values_and_actions.append((value, action))
             if naction is None or naction_value < value:
                 naction = action
                 naction_value = value
-        assert(naction is not None)
-        return naction, probs_and_actions
+        assert (naction is not None)
 
-    def get_eligibility(self, sid, action):
-        if (sid, action) not in self.eligibility:
-            self.eligibility[(sid, action)] = Parameters.DEFAULT_ELIGIBILITY
-        return self.eligibility[(sid, action)]
-
-    def inc_eligibility(self, state, action):
-        sid = state.id()
-        if (sid, action) not in self.eligibility:
-            self.eligibility[(sid, action)] = Parameters.INC_ELIGIBILITY
-        else:
-            self.eligibility[(sid, action)] += Parameters.INC_ELIGIBILITY
-
-    def get_qvalue(self, state, action):
-        sid = state.id()
-        if (sid, action) not in self.qvalues:
-            self.qvalues[(sid, action)] = Parameters.DEFAULT_QVALUE
-        return self.qvalues[(sid, action)]
+        return naction, values_and_actions
 
     def get_action(self, state):
         action, _ = self.q_greedy_action(state)
@@ -159,16 +147,8 @@ class ChaseStrategy(AgentStrategy):
     def init(self, env):
         self.policy = dict()
 
-    def __get_new_policy__(self, env):
-        return np.empty(env.get_states_dims(), dtype=pacman.Action)
-
-    def compute_policy(self, env):
-        newpolicy = self.__get_new_policy__(env)
-        for state in env.get_all_states():
-            assert (env.is_valid_state(state))
-            bestaction = self.compute_action(state)
-            newpolicy[state.id()] = bestaction
-        return newpolicy
+    def register_stats(self, env):
+        pass
 
     def compute_action(self, state):
         env = state.env
@@ -183,7 +163,7 @@ class ChaseStrategy(AgentStrategy):
         distance = Utils.bfs(env, self.agent_type, curpos, targetspos)
         # Select best move.
         bestaction, bestpos = pacman.Action.IDLE, curpos
-        assert(bestpos in distance)
+        assert (bestpos in distance)
         for npos, naction in env.get_nbs_positions(curpos, self.agent_type):
             if (npos in distance and
                         distance[npos] < distance[bestpos]):
@@ -201,6 +181,7 @@ class ChaseStrategy(AgentStrategy):
 
 class KeyboardStrategy(AgentStrategy):
     """Writes game description to console output and reads next move from standard input"""
+
     def __init__(self):
         AgentStrategy.__init__(self)
 

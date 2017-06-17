@@ -8,6 +8,7 @@ from gui import Gui
 
 import pacman
 from params import Parameters
+from approximators import TableLookupApproximator
 from strategies import PolicyStrategy, KeyboardStrategy, ChaseStrategy
 from utils import Console, Coord, Debug, Utils
 
@@ -69,7 +70,7 @@ class Environment:
                 newpos = nstate.agents[idx].pos
                 if not self.is_valid_state(nstate):
                     Debug.print("Agent [", agent.name, "] Forbidden move!")
-                    assert False
+                    raise RuntimeError
                     nstate.agents[idx] = agent
                 if newpos in nstate.foods:
                     nstate.foods.remove(newpos)
@@ -80,7 +81,7 @@ class Environment:
                 if not self.is_valid_state(nstate):
                     Debug.print(agent.pos, nstate.agents[idx].pos)
                     Debug.print("Agent [", agent.name, "] Forbidden move!")
-                    assert False
+                    raise RuntimeError
         return nstate, self.get_reward(nstate, eaten)
 
     def __generate_all_states__(self):
@@ -186,9 +187,9 @@ def get_simple_environment_with_three_foods():
 
     return Environment(
         board=board,
-        agents=[pacman.PlayerAgent("Player", PolicyStrategy(), Coord(9, 0)),
+        agents=[pacman.PlayerAgent("Player", PolicyStrategy(approximator=TableLookupApproximator()), Coord(9, 0)),
                 pacman.GhostAgent("Ghost #1", ChaseStrategy(target_agent=pacman.AgentType.PLAYER), Coord(0, 8)),
-                pacman.GhostAgent("Ghost #2", ChaseStrategy(target_agent=pacman.AgentType.PLAYER), Coord(8, 10)),
+                #pacman.GhostAgent("Ghost #2", ChaseStrategy(target_agent=pacman.AgentType.PLAYER), Coord(8, 10)),
                 ],
         foods=[Coord(0, 10), Coord(4, 5), Coord(0, 0)],
         exit=Coord(10, 10),

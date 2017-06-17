@@ -3,6 +3,7 @@ import enum
 import numpy as np
 import utils
 from utils import Coord
+from approximators import FeatureExtractor
 
 class MetaAction(type):
     def __iter__(self):
@@ -97,7 +98,6 @@ class State:
                 id += self.env.width * agent.pos.y + agent.pos.x
         return hash((id, frozenset(self.foods)))
 
-
 class Agent:
     def __init__(self, name, type, strategy, pos):
         self.name = name
@@ -131,3 +131,10 @@ class PlayerAgent(Agent):
 class GhostAgent(Agent):
     def __init__(self, name, strategy, pos):
         Agent.__init__(self, name, AgentType.GHOST, strategy, pos)
+
+class PacmanFeatureExtractor(FeatureExtractor):
+    def __init__(self):
+        FeatureExtractor.__init__(self)
+
+    def features(self, state):
+        pass
