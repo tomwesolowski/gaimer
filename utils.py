@@ -76,10 +76,12 @@ class Coord(object):
     def t(self):  # return a tuple representation.
         return self.x, self.y
 
+
 class PlotType(Enum):
     REGULAR = 0
     BAR = 1
     MATRIX = 2
+
 
 class Stats:
     """docstring for Stats"""
@@ -110,11 +112,16 @@ class MatrixStats(Stats):
 
 
 class Debug:
+    np.set_printoptions(formatter={'float': '{: 0.2f}'.format})
+
     @staticmethod
     def print(*args):
         print(*args, file=sys.stderr)
 
+
 class Console:
+    np.set_printoptions(formatter={'float': '{: 0.2f}'.format})
+
     @staticmethod
     def print(*args):
         print(*args)
