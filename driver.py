@@ -1,8 +1,7 @@
-import pacman.maps
-
+from pacman import maps
 
 def main():
-    env = pacman.maps.get_very_simple_environment()
+    env = maps.get_simple_environment()
     env.run(keep=True)
 
 if __name__ == '__main__':

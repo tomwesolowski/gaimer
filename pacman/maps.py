@@ -1,5 +1,5 @@
 from pacman.pacman import *
-from strategies import ChaseStrategy, PolicyStrategy
+from strategies import ChaseStrategy, PolicyStrategy, KeyboardStrategy
 from approximators import LinearApproximator, TableLookupApproximator
 
 '''
@@ -96,8 +96,7 @@ def get_simple_environment_without_ghosts():
                Coord(9, 2), Coord(10, 4), Coord(10, 5), Coord(10, 6), Coord(10, 7),
                Coord(0, 10), Coord(1, 10), Coord(2, 10), Coord(3, 10), Coord(4, 10),
                Coord(4, 4), Coord(4, 5), Coord(4, 6)],
-        exit=exitposition,
-        learning_epochs=LEARN_EPOCHS)
+        exit=exitposition)
 
 
 def get_simple_environment():
@@ -121,10 +120,9 @@ def get_simple_environment():
     return PacmanEnvironment(
         params=params,
         board=board,
-        agents=[PlayerAgent("Player", KeyboardStrategy(), Coord(0, 0)),
+        agents=[PlayerAgent("Player", PolicyStrategy(approximator=TableLookupApproximator(params)), Coord(0, 0)),
                 GhostAgent("Ghost #1", ChaseStrategy(target_agent=PacmanAgentType.PLAYER), Coord(10, 0)),
                 GhostAgent("Ghost #2", ChaseStrategy(target_agent=PacmanAgentType.GHOST), Coord(10, 10)),
                 ],
         foods=[Coord(2, 2), Coord(8, 2), Coord(0, 10)],
-        exit=Coord(5, 4),
-        learning_epochs=LEARN_EPOCHS)
+        exit=Coord(5, 4))
