@@ -30,7 +30,7 @@ class PolicyStrategy(AgentStrategy):
     def register_stats(self, env):
         """ Creates charts/stats that we want to show. """
         env.stats['rewards'] = Stats(PlotType.REGULAR)
-        env.stats['loses'] = Stats(PlotType.REGULAR)
+        env.stats['fails'] = Stats(PlotType.REGULAR)
         env.stats['heatmap'] = MatrixStats(env.height, env.width, 0)
 
     # def learn(self, env):
@@ -39,7 +39,7 @@ class PolicyStrategy(AgentStrategy):
     #         return
     #     for epoch in trange(self.params.LEARN_EPOCHS):
     #         total_rewards = 0.0
-    #         total_loses = 0.0
+    #         total_fails = 0.0
     #         Debug.print("QValues size: ", self.approximator.num_qvalues())
     #         for _ in range(self.params.EPISODES_PER_EPOCH):
     #             # Initialize state and values for statistics.
@@ -86,10 +86,10 @@ class PolicyStrategy(AgentStrategy):
     #
     #                 # Move on to next state.
     #                 state, action = nstate, naction
-    #             total_loses += env.is_losing_state(state)
+    #             total_fails += env.is_losing_state(state)
     #         # Update statistics.
     #         env.stats['rewards'].append(total_rewards / self.params.EPISODES_PER_EPOCH)
-    #         env.stats['loses'].append(total_loses / self.params.EPISODES_PER_EPOCH)
+    #         env.stats['fails'].append(total_fails / self.params.EPISODES_PER_EPOCH)
     #         env.refresh_stats()
     #     self.learnt = True
 
@@ -99,7 +99,7 @@ class PolicyStrategy(AgentStrategy):
             return
         for epoch in trange(self.params.LEARN_EPOCHS):
             total_rewards = 0.0
-            total_loses = 0.0
+            total_fails = 0.0
             for _ in range(self.params.EPISODES_PER_EPOCH):
                 # Initialize state and values for statistics.
                 lenepisode = 0
@@ -157,10 +157,10 @@ class PolicyStrategy(AgentStrategy):
 
                     # Move on to next state.
                     state, action = nstate, naction
-                total_loses += env.is_losing_state(state, state.get_player_pos())
+                total_fails += env.is_losing_state(state, state.get_player_pos())
             # Update statistics.
             env.stats['rewards'].append(total_rewards / self.params.EPISODES_PER_EPOCH)
-            env.stats['loses'].append(total_loses / self.params.EPISODES_PER_EPOCH)
+            env.stats['fails'].append(total_fails / self.params.EPISODES_PER_EPOCH)
             env.refresh_stats()
         self.learnt = True
 
@@ -270,3 +270,10 @@ class KeyboardStrategy(AgentStrategy):
         actions = state.get_actions(self)
         chosen_action = int(input())
         return actions[chosen_action]
+
+    def register_stats(self, env):
+        pass
+
+    def learn(self, env):
+        # No need to learn :-)
+        pass

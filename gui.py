@@ -28,10 +28,12 @@ class Gui:
                 line = ax.bar(0, 0)[0]
             elif stat.plot_type == PlotType.MATRIX:
                 line = ax.matshow(stat.matrix, vmin=np.min(stat.matrix), vmax=np.max(stat.matrix))
+                ax.axis('off')
             else:
                 assert False
             statid += 1
             ax.set_title(name)
+            plt.tight_layout()
             self.stats[name] = (ax, line)
         self.refresh()
 
