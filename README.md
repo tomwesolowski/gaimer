@@ -13,4 +13,6 @@ We've implemented a Pacman game. You can try it out by simply running:
 
 If you'd like to create custom map, open `maps.py` file, create your own environment and modify `driver.py` script.
 
+By default, our simple bot is ran. You can see how our pacman agent face ghosts armed with TD-lambda algorithm. 
+
 ## More games soon...
