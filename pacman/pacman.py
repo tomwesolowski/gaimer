@@ -15,14 +15,14 @@ class PacmanParameters(Parameters):
     GAMMA = 0.95
     ALPHA = 0.1  # changed from 0.2
     LAMBDA = 0.35
-    EPS = 0.3  # changed from 0.09
+    EPS = 0.1  # changed from 0.09
     DEFAULT_ELIGIBILITY = 0
     DEFAULT_QVALUE = 0
     INC_ELIGIBILITY = 1
     INF = 1e9
     LEARN_EPOCHS = 50
     EPISODES_PER_EPOCH = 100
-    MAX_LEN_EPISODE = 70
+    MAX_LEN_EPISODE = 75
 
 
 class PacmanAction(Action):

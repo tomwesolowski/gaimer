@@ -122,7 +122,6 @@ def get_simple_environment():
         board=board,
         agents=[PlayerAgent("Player", PolicyStrategy(approximator=TableLookupApproximator(params)), Coord(0, 0)),
                 GhostAgent("Ghost #1", ChaseStrategy(target_agent=PacmanAgentType.PLAYER), Coord(10, 0)),
-                GhostAgent("Ghost #2", ChaseStrategy(target_agent=PacmanAgentType.GHOST), Coord(10, 10)),
                 ],
-        foods=[Coord(2, 2), Coord(8, 2), Coord(0, 10)],
+        foods=[Coord(2, 2), Coord(8, 10)],
         exit=Coord(5, 4))
